@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+openai>=1.0.0
+psycopg2-binary
+pandas
+numpy
+PyYAML
+pydantic
+neo4j
+

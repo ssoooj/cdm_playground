@@ -1,0 +1,117 @@
+postgresql:
+  dbname: 'cdm2024_nid'
+  user: 'name'
+  password: 'password'
+  host: 'localhost'
+  port: 5432
+
+neo4j:
+  enabled: false
+  uri: bolt://localhost:7689
+  user: neo4j
+  password: password
+
+graph_schema:
+  property_csv: /Users/sohyeon/Downloads/250618_property_전체.csv
+  seed_limit: 40
+  edge_limit: 600
+
+llm:
+  provider: 'lmstudio'
+  lmstudio:
+    api_base: 'http://localhost:1234/v1'
+    api_key: 'not-needed'
+    model: 'medgemma-27b-text-it-mlx'
+    available_models:
+      - 'gemma-3-27b-it'
+      - 'phi-4'
+      - 'qwen3-30b-a3b'
+      - 'deepseek-r1-distill-llama-8b'
+    parameters:
+      max_text_length: 20000
+      temperature: 0.0
+      max_tokens: 6000
+
+  openai:
+    api_base: 'https://api.openai.com/v1'
+    api_key: 'YOUR_OPENAI_API_KEY'
+    model: 'gpt-4o'
+    parameters:
+      temperature: 0.2
+      max_tokens: 4096
+
+anchor:
+  # type: current_date | fixed_date | max_in_data
+  type: max_in_data
+  # type = fixed_date 일 때만 사용
+  as_of: "2024-12-31"
+
+vocabulary_routing: # 만일 작동하지 않으면 코드에서 동일한 기본값 (DOMAIN_SPEC)으로 동작함
+  Condition:
+    standard: ["SNOMED"]
+    sources: ["SNOMED", "ICD10CM","ICD9CM"]
+    maps_to: ["Maps to"]
+    closure_vocabs: ["SNOMED"]
+    table: "condition_occurrence"
+    concept_field: "condition_concept_id"
+    date_field: "condition_start_date"
+
+  Procedure:
+    standard: ["SNOMED","CPT4","ICD10PCS"]
+    sources: ["ICD9Proc", "HCPCS", "SNOMED", "CPT4", "ICD10PCS"]
+    maps_to: ["Maps to"]
+    closure_vocabs: ["SNOMED", "CPT4", "ICD10PCS"]
+    table: "procedure_occurrence"
+    concept_field: "procedure_concept_id"
+    date_field: "procedure_date"
+
+  Drug:
+    standard: ["RxNorm","RxNorm Extension"]
+    sources:  ["NDC","ATC","RxNorm","RxNorm Extension"]
+    maps_to:
+      - "Maps to"
+      - "ATC - RxNorm"
+      - "ATC - RxNorm pr lat"
+      - "ATC - RxNorm pr up"
+      - "ATC - RxNorm sec lat"
+      - "ATC - RxNorm sec up"
+      - "Drug class of drug"
+    closure_vocabs: ["RxNorm","RxNorm Extension"]
+    table: "drug_exposure"
+    concept_field: "drug_concept_id"
+    date_field: "drug_exposure_start_date"
+
+  Measurement:
+    standard: ["LOINC"]
+    sources:  ["LOINC"]
+    maps_to:  ["Maps to"]
+    table: "measurement"
+    concept_field: "measurement_concept_id"
+    date_field: "measurement_date"
+
+  Observation:
+    standard: ["SNOMED","LOINC"]
+    sources: ["SNOMED", "LOINC"]
+    maps_to: ["Maps to"]
+    closure_vocabs: ["SNOMED", "LOINC"]
+    table: "observation"
+    concept_field: "observation_concept_id"
+    date_field: "observation_date"
+
+  Device:
+    standard: ["SNOMED"]
+    sources: ["SNOMED"]
+    maps_to: ["Maps to"]
+    closure_vocabs: ["SNOMED"]
+    table: "device_exposure"
+    concept_field: "device_concept_id"
+    date_field: "device_exposure_start_date"
+
+  Death:
+    standard: []
+    sources: []
+    maps_to: []
+    closure_vocabs: []
+    table: "death"
+    concept_field: null
+    date_field: "death_date"

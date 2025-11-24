@@ -1,0 +1,1102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>KHDP CDM RAG Studio</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/cytoscape@3.28.1/dist/cytoscape.umd.js"></script>
+<script src="https://unpkg.com/cytoscape-fcose@2.2.0/cytoscape-fcose.js"></script>
+<script>
+  if (window.cytoscape && window.cytoscapeFcose) {
+    cytoscape.use(cytoscapeFcose);
+  }
+</script>
+
+<style>
+:root{
+  --bg:#ffffff; --surface:#ffffff;
+  --ink:#0f172a;
+  --sub:#465066;
+  --line:#e7edf5;
+  --pill:#274060; --pill-ink:#fff;
+  --radius:14px; --shadow:0 6px 24px rgba(15,23,42,.06);
+
+  --sb-900:#274060;
+  --sb-700:#3f6aa0;
+  --sb-500:#6b8fc3;
+  --sb-300:#9fb6da;
+  --sb-200:#cbd9ee;
+  --sb-100:#e7f0fb;
+}
+*{box-sizing:border-box} html,body{height:100%}
+body{
+  margin:0;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple SD Gothic Neo","Noto Sans KR","Nanum Gothic",sans-serif;
+  background:var(--bg);color:var(--ink);
+}
+header{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  padding:10px 14px;margin:10px;border:1px solid var(--line);
+  border-radius:calc(var(--radius)+4px);background:var(--surface);
+  box-shadow:var(--shadow);position:sticky;top:8px;z-index:3;
+}
+.brand{display:flex;align-items:center;gap:12px}
+.logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #2867BF 60%, #7aa7ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 800;
+  font-size: 17px;
+  box-shadow: 0 2px 8px rgba(40, 103, 191, 0.13);
+}
+.title{font-weight:800;letter-spacing:.2px;color:#2867BF;}
+.subtle{color:var(--sub);font-size:12px}
+
+main{
+  display:grid;
+  grid-template-columns:minmax(360px,0.85fr) 1.6fr;
+  gap:12px;
+  height:auto;
+  padding:10px;
+  align-items:start;
+}
+@media (max-width:1080px){ main{grid-template-columns:1fr;height:auto} }
+
+.chat-wrap{
+  display:flex;flex-direction:column;min-height:0;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:10px;
+}
+.chat{flex:1;min-height:0;overflow:auto;padding:4px}
+.msg{display:grid;gap:6px;margin:10px 0;max-width:85%}
+.from-user { justify-self: end; }
+.from-bot  { justify-self: start; }
+.bubble{
+  padding:10px 12px;border-radius:14px;line-height:1.45;white-space:pre-wrap;word-break:break-word;
+  border:1px solid var(--line);background:#f7f9fc;font-size:14px
+}
+.from-user .bubble{background:#f1f5fb;border-top-right-radius:6px}
+.from-bot .bubble{background:#fff;border-top-left-radius:6px}
+.meta{font-size:12px;color:var(--sub)}
+.empty{text-align:center;color:var(--sub);padding:40px 8px}
+
+.composer{
+  display:flex;gap:10px;align-items:flex-end;background:var(--surface);
+  border-radius:calc(var(--radius)+4px);border:1px solid var(--line);box-shadow:var(--shadow);
+  padding:10px;margin-top:10px
+}
+.composer textarea{flex:1;min-height:56px;max-height:220px;resize:vertical;font-size:14px}
+.btn{padding:10px 14px;border:1px solid var(--ink);background:var(--ink);color:#fff;border-radius:12px;font-weight:700;cursor:pointer;min-width:84px}
+.btn.secondary{background:#fff;color:var(--ink);border-color:var(--ink)}
+.btn.danger{background:#fff;color:#b3261e;border-color:#b3261e}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+
+.settings summary{cursor:pointer;padding:6px 10px;border:1px solid var(--line);border-radius:999px}
+.settings-panel{
+  margin-top:10px;background:var(--surface);border:1px solid var(--line);
+  border-radius:12px;box-shadow:var(--shadow);padding:12px;display:grid;gap:10px;min-width:680px
+}
+.settings-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px}
+.settings small{color:var(--sub)}
+
+.settings summary{
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  line-height: 1;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.settings summary::-webkit-details-marker{ display:none; }
+.settings summary::marker{ content:''; }
+
+.settings summary::after{
+  content:'';
+  position:absolute;
+  inset:-6px;
+  border-radius:999px;
+}
+
+.viz{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:14px;display:flex;flex-direction:column;min-height:0
+}
+.viz h3{margin:0 0 14px 2px;font-size:16px}
+.stat-row{
+  display:flex;flex-wrap:wrap;gap:12px;margin-top:4px;margin-bottom:14px;justify-content:flex-end;width:100%;
+}
+.pill{background:transparent;color:var(--ink);border:1.5px solid var(--ink);border-radius:999px;padding:6px 12px;font-size:12px}
+
+.viz-grid{
+  display:grid;
+  grid-template-columns:1.2fr 1fr;
+  gap:18px;
+  overflow:visible;               
+}
+@media (max-width:1400px){ .viz-grid{grid-template-columns:1fr} }
+
+.viz-card{
+  background:white;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
+  padding:12px;min-height:320px;
+}
+.viz-card h4{margin:0 0 8px;font-size:14px;color:var(--sub)}
+.viz-card canvas{
+  width:100% !important;
+  max-height:300px !important;
+}
+
+.viz-card.graph {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 10px;
+
+  height: 52vh;
+  min-height: 520px;
+  max-height: 900px;
+}
+
+#cy{
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.ellipsis{display:inline-flex;gap:4px;vertical-align:middle}
+.ellipsis span{font-weight:700;line-height:1;opacity:.25;animation:ellipsisPulse 900ms infinite ease-in-out}
+.ellipsis span:nth-child(2){animation-delay:.15s}
+.ellipsis span:nth-child(3){animation-delay:.30s}
+@keyframes ellipsisPulse{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-2px)}}
+
+.loader{display:none;align-items:center;gap:4px;margin-left:auto}
+.loader.show{display:flex}
+.loader span{width:4px;height:16px;display:inline-block;background:var(--pill);border-radius:2px;animation:wave 1s infinite ease-in-out}
+.loader span:nth-child(2){animation-delay:.1s}
+.loader span:nth-child(3){animation-delay:.2s}
+.loader span:nth-child(4){animation-delay:.3s}
+@keyframes wave{0%,100%{transform:scaleY(.4);opacity:.4}50%{transform:scaleY(1);opacity:1}}
+.hidden{display:none}
+
+.toast{
+  position:fixed;top:12px;right:14px;background:#111;color:#fff;padding:10px 14px;border-radius:10px;
+  box-shadow:var(--shadow);opacity:0;transform:translateY(-8px);transition:.25s;z-index:50
+}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.ok{background:#182a59}
+.toast.err{background:#b3261e}
+
+.aip-wave{display:flex;gap:6px;align-items:flex-end;height:44px;padding:6px 2px}
+.aip-wave span{
+  width:6px;background:var(--pill);border-radius:3px;animation:aipW 1.2s ease-in-out infinite;
+  box-shadow:0 0 0 1px rgba(39,64,96,.08) inset;
+}
+.aip-wave span:nth-child(1){height:10px;animation-delay:0s}
+.aip-wave span:nth-child(2){height:18px;animation-delay:.1s}
+.aip-wave span:nth-child(3){height:28px;animation-delay:.2s}
+.aip-wave span:nth-child(4){height:18px;animation-delay:.3s}
+.aip-wave span:nth-child(5){height:10px;animation-delay:.4s}
+@keyframes aipW{0%,100%{transform:scaleY(.7)}50%{transform:scaleY(1.35)}}
+.viz-card.wide{ grid-column: 1 / -1; }
+.viz-card.center{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+}
+.viz-card.center h4{ text-align:center; margin-bottom:10px; }
+
+.app-info{
+  font-size:12px;
+  color:var(--sub);
+  display:flex;
+  gap:16px;
+  align-items:center;
+  justify-content:flex-end;
+}
+.app-info a{ color:var(--sub); text-decoration:none; }
+.app-info a:hover{ text-decoration:underline; }
+
+.app-footer{
+  margin-top:20px;
+  padding:14px 20px;
+  border-top:1px solid var(--line);
+  color:var(--sub);
+  font-size:12px;
+  display:flex;
+  gap:18px;
+  justify-content:flex-end;
+}
+.app-footer a{ color:var(--sub); text-decoration:none; }
+.app-footer a:hover{ text-decoration:underline; }
+</style>
+
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo" aria-hidden="true">
+      <img src="static/khdp_temp_logo.png" alt="Logo" style="width:100%; height:100%; border-radius:8px;" />
+    </div>
+    <div>
+      <div class="title">KHDP CDM RAG Studio</div>
+      <div class="subtle">Search · Analytics</div>
+    </div>
+  </div>
+
+  <details class="settings">
+    <summary>Settings</summary>
+    <div class="settings-panel">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <label><input type="radio" name="mode" value="backend" checked/> Backend API</label>
+        <label><input type="radio" name="mode" value="lmstudio" /> LM Studio (direct)</label>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button id="btnSave" class="btn">Save</button>
+          <button id="btnExport" class="btn secondary">Export data</button>
+          <button id="btnClear" class="btn danger">Delete history</button>
+        </div>
+      </div>
+
+      <div class="settings-grid">
+        <div><small>Backend URL</small><input id="backendUrl" type="text" placeholder="https://&lt;this-domain&gt;/ask"/>
+        </div>
+        <div><small>LM Studio Base</small><input id="lmBase" type="text" value="http://localhost:1234/v1"/></div>
+        <div><small>Model</small><input id="lmModel" type="text" value="medgemma-27b-text-it-mlx"/></div>
+        <div><small>Temp</small><input id="lmTemp" type="text" value="0.0"/></div>
+
+        <div><small>Neo4j URI</small><input id="neo4jUri" type="text" placeholder="bolt://localhost:7687"/></div>
+        <div><small>Neo4j User</small><input id="neo4jUser" type="text" placeholder="neo4j"/></div>
+        <div><small>Neo4j Password</small><input id="neo4jPass" type="password" placeholder="••••••"/></div>
+        <div><small>Graph term (test)</small><input id="testTerm" type="text" placeholder="Hypertension"/></div>
+      </div>
+
+      <div id="appInfoTop" class="app-info"></div>
+    </div>
+  </details>
+</header>
+
+<main>
+  <!-- Left: Chat -->
+  <section class="chat-wrap">
+    <div id="chat" class="chat" aria-live="polite" aria-label="Conversation">
+        <div id="emptyState" class="empty">Type your question below and press Enter.</div>
+    </div>
+    <div class="composer">
+      <textarea id="input" placeholder="Ask anything…"></textarea>
+      <button class="btn" id="send">Send</button>
+    </div>
+  </section>
+
+  <aside class="viz">
+    <div style="display:flex;align-items:center;gap:8px">
+      <h3 style="margin:0">Analytics</h3>
+      <div id="loader" class="loader" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+    </div>
+    <div class="stat-row" id="vizStats"></div>
+    <div class="viz-grid" id="vizGrid"></div>
+
+    <div class="viz-card graph" style="margin-top:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <h4 style="margin:0">Graph</h4>
+        <div class="tool-row" style="display:flex;gap:8px">
+          <button id="btnLoadGraph" class="btn secondary" style="min-width:120px">Load graph</button>
+          <button id="btnLLMGraph" class="btn secondary" style="min-width:120px">LLM graph</button>
+        </div>
+      </div>
+      <div id="cy" style="margin-top:10px"></div>
+    </div>
+
+  </aside>
+</main>
+
+<footer class="app-footer" id="appInfoFooter"></footer>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<template id="tplMsg">
+  <div class="msg">
+    <div class="bubble"></div>
+    <div class="meta"></div>
+  </div>
+</template>
+
+<script>
+const APP_INFO = {
+  name: "KHDP CDM RAG Studio",
+  version: "1.5",
+  contact: "sohyeon@snu.ac.kr",
+  developer: "Sohyeon Jeon",
+  updated: "25.09.27"
+};
+function renderAppInfo(el, asFooter=false){
+  if(!el) return;
+  el.innerHTML = `
+    <span>Version: ${APP_INFO.version}</span>
+    <span>Last Updated: ${APP_INFO.updated}</span>
+    <span>Contact: <a href="mailto:${APP_INFO.contact}">${APP_INFO.contact}</a></span>
+    <span>Developer: ${APP_INFO.developer}</span>
+  `;
+}
+
+const toastEl = document.getElementById('toast');
+function toast(msg, type='ok'){ toastEl.textContent=msg; toastEl.className='toast show '+type; setTimeout(()=>toastEl.className='toast', 1800); }
+function sum(arr){ return arr.reduce((a,b)=>a+(+b||0),0); }
+
+const store = {
+  key:'snuh-chat-v3',
+  load(){ try{return JSON.parse(localStorage.getItem(this.key)||'{}')}catch{return {}} },
+  save(x){ localStorage.setItem(this.key, JSON.stringify(x)) }
+};
+let state = store.load();
+if(!state.history) state.history = [];
+
+const els = {
+  chat: document.getElementById('chat'),
+  empty: document.getElementById('emptyState'),
+  input: document.getElementById('input'),
+  send: document.getElementById('send'),
+  tpl: document.getElementById('tplMsg'),
+  backendUrl: document.getElementById('backendUrl'),
+  lmBase: document.getElementById('lmBase'),
+  lmModel: document.getElementById('lmModel'),
+  lmTemp: document.getElementById('lmTemp'),
+  btnSave: document.getElementById('btnSave'),
+  btnExport: document.getElementById('btnExport'),
+  btnClear: document.getElementById('btnClear'),
+  neo4jUri: document.getElementById('neo4jUri'),
+  neo4jUser: document.getElementById('neo4jUser'),
+  neo4jPass: document.getElementById('neo4jPass'),
+  testTerm: document.getElementById('testTerm'),
+  vizStats: document.getElementById('vizStats'),
+  vizGrid: document.getElementById('vizGrid'),
+  loader: document.getElementById('loader'),
+  btnLoadGraph: document.getElementById('btnLoadGraph'),
+  btnLLMGraph: document.getElementById('btnLLMGraph')
+};
+function currentMode(){
+  const r = document.querySelector('input[name="mode"]:checked');
+  return (r && r.value) ? r.value : 'backend';
+}
+function fmtTime(ts){
+  const d=new Date(ts);
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+(function restore(){
+  const fallback = `${window.location.origin.replace(/\/$/,'')}/ask`;
+  const initial = (state.backendUrl || els.backendUrl.value || '').trim();
+  let url = initial || fallback;
+  if (!/\/ask(?:\/)?$/.test(url)) url = url.replace(/\/+$/,'') + '/ask';
+
+  els.backendUrl.value = url;
+  state.backendUrl = url;
+
+  els.lmBase.value = state.lmBase || els.lmBase.value;
+  els.lmModel.value = state.lmModel || els.lmModel.value;
+  els.lmTemp.value  = state.lmTemp  || els.lmTemp.value;
+  els.neo4jUri.value  = state.neo4jUri  || els.neo4jUri.value;
+  els.neo4jUser.value = state.neo4jUser || els.neo4jUser.value;
+  els.neo4jPass.value = state.neo4jPass || els.neo4jPass.value;
+
+  store.save(state);
+})();
+function addMessage(role, content, ts=Date.now(), save=true){
+  els.empty.classList.add('hidden');
+  const node = els.tpl.content.firstElementChild.cloneNode(true);
+  node.classList.add(role==='user'?'from-user':'from-bot');
+  node.querySelector('.bubble').textContent = content;
+  node.querySelector('.meta').textContent = (role==='user'?'You':'KHDP') + ' · ' + fmtTime(ts);
+  els.chat.appendChild(node);
+  els.chat.scrollTop = els.chat.scrollHeight;
+  if(save){ state.history.push({role, content, ts}); store.save(state); }
+  return node;
+}
+function addTyping(){
+  const node = els.tpl.content.firstElementChild.cloneNode(true);
+  node.classList.add('from-bot');
+  node.querySelector('.bubble').innerHTML = '<span class="ellipsis"><span>.</span><span>.</span><span>.</span></span>';
+  node.querySelector('.meta').textContent = 'Typing…';
+  els.chat.appendChild(node);
+  els.chat.scrollTop = els.chat.scrollHeight;
+  return node;
+}
+function removeNode(el){ el?.parentElement?.removeChild(el); }
+function renderAll(){
+  els.chat.innerHTML = '';
+  if(!state.history.length) els.empty.classList.remove('hidden');
+  state.history.forEach(m => addMessage(m.role, m.content, m.ts, false));
+}
+renderAll();
+
+function getBackendUrl(){
+  let url = (els.backendUrl.value || '').trim();
+  if (!url) url = `${window.location.origin.replace(/\/$/,'')}/ask`;
+  if (!/\/ask(?:\/)?$/.test(url)) url = url.replace(/\/+$/,'') + '/ask';
+
+  els.backendUrl.value = url;
+  if (state.backendUrl !== url){
+    state.backendUrl = url;
+    store.save(state);
+  }
+  return url;
+}
+async function sendToBackend(messages){
+  const url = getBackendUrl();
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ messages }),
+    mode: 'cors',
+    credentials: 'omit',
+    cache: 'no-store',
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(()=> '');
+    throw new Error(`Backend ${res.status} ${text||''}`.trim());
+  }
+  return await res.json();
+}
+async function sendToLmStudio(messages){
+  const base = els.lmBase.value.replace(/\/$/,''); const url = `${base}/chat/completions`;
+  const payload = { model: els.lmModel.value.trim()||'medgemma-27b-text-it-mlx', messages, temperature: parseFloat(els.lmTemp.value||'0')||0, stream:false };
+  const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+  if(!res.ok) throw new Error(`LM Studio ${res.status}`); return await res.json();
+}
+function extractAssistantText(json){
+  if(json?.choices?.[0]?.message?.content) return json.choices[0].message.content;
+  if(json?.answer) return json.answer;
+  if(typeof json === 'string') return json;
+  return '[Response parsing failed]';
+}
+
+function extractAnalytics(json, replyText){
+  if(json && json.meta && json.meta.analytics) return json.meta.analytics;
+  const txt = String(replyText||"");
+  const START="<!--CDM_METRICS:"; const i = txt.lastIndexOf(START);
+  if(i!==-1){ const j = txt.indexOf("-->", i); if(j!==-1){ try{
+      const payload = JSON.parse(txt.slice(i+START.length, j).trim());
+      const meta = payload.metrics || payload;
+      if(payload.base_term && !meta.base_term) meta.base_term = payload.base_term;
+      if(payload.total_n && !meta.total_n) meta.total_n = payload.total_n;
+      return meta;
+  }catch(e){ console.warn('metrics parse failed', e); }}}
+  return null;
+}
+function stripHiddenMetrics(text){
+  const START="<!--CDM_METRICS:"; const i = text.lastIndexOf(START);
+  if(i===-1) return text;
+  const j = text.indexOf("-->", i);
+  if(j===-1) return text;
+  return (text.slice(0,i) + text.slice(j+3)).trimEnd();
+}
+
+if (window.ChartDataLabels) { Chart.register(ChartDataLabels); }
+const CSS = getComputedStyle(document.documentElement);
+const SB = {
+  900: CSS.getPropertyValue('--sb-900').trim() || '#274060',
+  700: CSS.getPropertyValue('--sb-700').trim() || '#3f6aa0',
+  500: CSS.getPropertyValue('--sb-500').trim() || '#6b8fc3',
+  300: CSS.getPropertyValue('--sb-300').trim() || '#9fb6da',
+  200: CSS.getPropertyValue('--sb-200').trim() || '#cbd9ee',
+  100: CSS.getPropertyValue('--sb-100').trim() || '#e7f0fb',
+  ink: CSS.getPropertyValue('--ink').trim() || '#0f172a'
+};
+function silverBlue(n){
+  const arr=[SB[900],SB[700],SB[500],SB[300],SB[200],SB[100]];
+  return n<=arr.length ? arr.slice(0,n)
+                       : Array.from({length:n},(_,i)=>arr[Math.min(i,arr.length-1)]);
+}
+Chart.defaults.color = SB.ink;
+Chart.defaults.borderColor = 'rgba(15,23,42,.08)';
+const centerTextPlugin = {
+  id:'centerText',
+  afterDraw(chart, args, opts){
+    if(!opts || !opts.text) return;
+    const meta = chart.getDatasetMeta(0)?.data || [];
+    const first = meta[0];
+    const cx = first ? first.x : chart.chartArea.width/2;
+    const cy = first ? first.y : chart.chartArea.height/2;
+    const ctx = chart.ctx;
+    ctx.save(); ctx.fillStyle = SB.ink; ctx.font = '600 14px Inter, system-ui, sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(opts.text, cx, cy); ctx.restore();
+  }
+};
+Chart.register(centerTextPlugin);
+
+let _charts = [];
+function showAnalyticsPlaceholder(){
+  clearViz();
+  const card = document.createElement('div');
+  card.className='viz-card wide';
+  const h = document.createElement('h4'); h.textContent='Analytics';
+  card.appendChild(h);
+  els.vizGrid.appendChild(card);
+}
+function showIntelligentProcessing(){
+  clearViz();
+  const card = document.createElement('div');
+  card.className='viz-card wide center';
+  const h = document.createElement('h4'); h.textContent='Intelligent processing';
+  const wave = document.createElement('div'); wave.className='aip-wave';
+  wave.innerHTML='<span></span><span></span><span></span><span></span><span></span>';
+  card.appendChild(h);
+  card.appendChild(wave);
+  els.vizGrid.appendChild(card);
+}
+function clearViz(){
+  els.vizStats.innerHTML = '';
+  els.vizGrid.innerHTML = '';
+  _charts.forEach(ch => { try{ ch.destroy(); }catch{} });
+  _charts = [];
+}
+function addPill(label){
+  const el = document.createElement('div'); el.className='pill';
+  el.textContent = label; return el;
+}
+function makeCard(title){
+  const card = document.createElement('div'); card.className='viz-card';
+  const h = document.createElement('h4'); h.textContent = title;
+  const c = document.createElement('canvas');
+  card.appendChild(h); card.appendChild(c);
+  els.vizGrid.appendChild(card);
+  return c.getContext('2d');
+}
+
+function makeTableCard(title){
+  const card = document.createElement('div'); card.className='viz-card';
+  const h = document.createElement('h4'); h.textContent = title;
+  const wrap = document.createElement('div'); wrap.style.padding = '2px 4px 0';
+  const table = document.createElement('table');
+  table.style.width = '100%'; table.style.borderCollapse='collapse'; table.style.fontSize='13px';
+  table.style.color = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#0f172a';
+  wrap.appendChild(table); card.appendChild(h); card.appendChild(wrap); els.vizGrid.appendChild(card);
+  return table;
+}
+function addRow(table, k, v){
+  const tr = document.createElement('tr');
+  const td1 = document.createElement('td'); const td2 = document.createElement('td');
+  td1.textContent = k; td2.textContent = v;
+  td1.style.padding='6px 8px'; td2.style.padding='6px 8px';
+  td1.style.borderTop='1px solid rgba(15,23,42,.08)';
+  td2.style.borderTop='1px solid rgba(15,23,42,.08)';
+  td1.style.whiteSpace='nowrap'; td1.style.color='#465066';
+  tr.appendChild(td1); tr.appendChild(td2); table.appendChild(tr);
+}
+function fmtNum(x, d=2){
+  if (x===null || x===undefined || Number.isNaN(+x)) return '—';
+  if (typeof x === 'number') return x.toLocaleString(undefined, {maximumFractionDigits:d});
+  const n = +x; return Number.isFinite(n) ? n.toLocaleString(undefined,{maximumFractionDigits:d}) : String(x);
+}
+
+function renderMeasurementExtras(analytics){
+  const num = analytics && analytics.numeric;
+  if (!num) return;
+
+  // (A) Numeric summary table
+  const t = makeTableCard('Numeric summary');
+  addRow(t, 'Value strategy', String(num.value_strategy || 'latest'));
+  addRow(t, 'Outlier rule', String(num.outlier || 'none'));
+  if (typeof num.count === 'number') addRow(t, 'N (patients)', fmtNum(num.count, 0));
+  if (num.quantiles){
+    const q = num.quantiles;
+    addRow(t, 'Min / Max', `${fmtNum(q.min)}  ~  ${fmtNum(q.max)}`);
+    addRow(t, 'Median', fmtNum(q.p50 ?? q.median));
+    addRow(t, 'Mean', fmtNum(q.mean));
+    addRow(t, 'P95 / P99', `${fmtNum(q.p95)}  /  ${fmtNum(q.p99)}`);
+  }
+
+  // (B) Histogram (clinical buckets or auto bins)
+  if (num.histogram && Array.isArray(num.histogram.labels) && Array.isArray(num.histogram.counts) && num.histogram.labels.length){
+    const ctx = makeCard('Value histogram');
+    _charts.push(new Chart(ctx, {
+      type:'bar',
+      data:{ labels: num.histogram.labels, datasets:[{
+        label:'Patients', data: num.histogram.counts,
+        backgroundColor: SB[500], borderColor: SB[700], borderWidth:1.2, hoverBackgroundColor: SB[700]
+      }]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, datalabels:{ anchor:'end', align:'top', formatter:(v)=>v?fmtNum(v,0):'', font:{weight:'600',size:10} } },
+        scales:{
+          y:{ beginAtZero:true, grid:{color:'rgba(15,23,42,.08)'}, ticks:{ color:SB.ink } },
+          x:{ grid:{color:'rgba(15,23,42,.05)'}, ticks:{ color:SB.ink, autoSkip:false, maxRotation:0, minRotation:0 } }
+        }
+      }
+    }));
+  }
+
+  // (C) Unit top candidates
+  if (Array.isArray(num.unit_top) && num.unit_top.length){
+    const ctx = makeCard('Units (top)');
+    const labels = num.unit_top.map(u => u.unit || u.label || '—');
+    const data   = num.unit_top.map(u => +u.n || 0);
+    _charts.push(new Chart(ctx, {
+      type:'pie',
+      data:{ labels, datasets:[{ data, backgroundColor: silverBlue(data.length), borderColor:'#fff', borderWidth:1 }]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{ position:'bottom', labels:{ color:SB.ink } },
+          datalabels:{ color:'#fff', anchor:'center', align:'center', formatter:v=>`${(v/sum(data)*100).toFixed(0)}%`, font:{weight:'600', size:11} }
+        }
+      }
+    }));
+  }
+}
+function renderRightPanel(analytics){
+  clearViz();
+  if(!analytics){ showAnalyticsPlaceholder(); return; }
+
+  if(typeof analytics.total_n === 'number') els.vizStats.appendChild(addPill(`Cohort: ${analytics.total_n.toLocaleString()}`));
+  if(typeof analytics.base_all === 'number' && typeof analytics.pct_of_all === 'number')
+    els.vizStats.appendChild(addPill(`Share of all: ${analytics.pct_of_all.toFixed(2)}% of ${analytics.base_all.toLocaleString()}`));
+  if(typeof analytics.base_age_gender === 'number' && typeof analytics.pct_of_base_age_gender === 'number')
+    els.vizStats.appendChild(addPill(`Share of base (age/gender): ${analytics.pct_of_base_age_gender.toFixed(2)}% of ${analytics.base_age_gender.toLocaleString()}`));
+
+  // Recency (bar)
+  if(analytics.recency){
+    const ctx = makeCard('Recent activity (unique patients)');
+    const labels = ['365d','180d','90d','30d'];
+    const data = labels.map(k => (analytics.recency['n'+k.replace('d','')]?.n || 0));
+    _charts.push(new Chart(ctx, {
+      type:'bar',
+      data:{ labels, datasets:[{ label:'Patients', data,
+        backgroundColor: SB[500], borderColor: SB[700], borderWidth:1.2, hoverBackgroundColor: SB[700]
+      }]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{legend: {display:false}, datalabels: {color:'#fff', anchor:'center', align:'center', formatter:(v)=>v.toLocaleString(), font:{weight:'600', size:11}}
+        },
+        scales:{
+          y:{beginAtZero:true, ticks:{color: SB.ink}, grid:{color:'rgba(15,23,42,.08)'}},
+          x:{ticks:{autoSkip:false, color:SB.ink}, grid:{color:'rgba(15,23,42,.05)'}}
+        },
+        categoryPercentage:0.7, barPercentage:0.8
+      }
+    }));
+  }
+
+  // Age (doughnut)
+  if (Array.isArray(analytics.age_buckets) && analytics.age_buckets.length) {
+    const ctx = makeCard('Age distribution');
+    const labels = analytics.age_buckets.map(i => i.bucket);
+    const data = analytics.age_buckets.map(i => i.n);
+    const total = sum(data);
+
+    _charts.push(new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: silverBlue(data.length),
+          borderColor: '#fff',
+          borderWidth: 1,
+          datalabels: { color: '#fff', anchor: 'center', align: 'center' }
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '62%', layout: { padding: 6 },
+        plugins: {
+          legend: { position: 'bottom', labels: { color: SB.ink, usePointStyle: true, boxWidth: 10, boxHeight: 10 } },
+          tooltip: { callbacks: { label: c => ` ${c.label}: ${c.parsed.toLocaleString()}` } },
+          datalabels: {
+            color: '#fff', anchor: 'center', align: 'center',
+            formatter: v => { const p = total ? (v / total * 100) : 0; return p >= 4 ? `${p.toFixed(0)}%` : ''; },
+            font: { weight: '600', size: 11 }, clamp: true, clip: true
+          },
+          centerText: { text: `N=${total.toLocaleString()}` }
+        }
+      }
+    }));
+  }
+
+  // Top concepts (horizontal bar)
+  if(Array.isArray(analytics.top_concepts) && analytics.top_concepts.length){
+    const ctx = makeCard('Top concepts');
+    const labels = analytics.top_concepts.map(i=>i.concept_name);
+    const data = analytics.top_concepts.map(i=>i.n);
+    _charts.push(new Chart(ctx, {
+      type:'bar',
+      data:{ labels, datasets:[{ label:'Patients', data,
+        backgroundColor: SB[700], borderColor: SB[900], borderWidth:1.2, hoverBackgroundColor: SB[900]
+      }]},
+      options:{
+        indexAxis:'y',
+        responsive:true,
+        maintainAspectRatio:false,
+        plugins:{
+          legend:{display:false},
+          datalabels:{
+            color:'#fff', anchor:'center', align:'center',
+            formatter:(v)=>v.toLocaleString(), font:{weight:'600', size:11},
+            clamp:true, clip:true
+          }
+        },
+        scales:{
+          x:{beginAtZero:true, ticks:{color:SB.ink}, grid:{color:'rgba(15,23,42,.08)'}},
+          y:{ticks:{color:SB.ink}, grid:{color:'rgba(15,23,42,.05)'}}
+        }
+      }
+    }));
+  }
+
+  // Gender (pie)
+  if (Array.isArray(analytics.gender_breakdown) && analytics.gender_breakdown.length) {
+    const ctx = makeCard('Gender');
+    const labels = analytics.gender_breakdown.map(i => i.gender);
+    const data = analytics.gender_breakdown.map(i => i.n);
+    const total = sum(data);
+
+    _charts.push(new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: silverBlue(data.length),
+          borderColor: '#fff',
+          borderWidth: 1,
+          radius: '80%'
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 18, right: 24, bottom: 12, left: 24 } },
+        plugins: {
+          legend: { position: 'bottom', labels: { color: SB.ink } },
+          datalabels: {
+            color: '#fff', anchor: 'center', align: 'center',
+            formatter: v => `${(v / total * 100).toFixed(0)}%`,
+            font: { weight: '600', size: 11 }, clamp: true, clip: true
+          }
+        }
+      }
+    }));
+  }
+
+  renderMeasurementExtras(analytics);
+
+  // Enable graph button when base_term available
+  els.btnLoadGraph.disabled = !analytics.base_term;
+  els.btnLoadGraph.dataset.term = analytics.base_term || '';
+}
+
+/* ---------- Graph (Cytoscape) ---------- */
+let cy = null;
+let lastGraphData = null;
+
+function initCy(){
+  if(cy) cy.destroy();
+  cy = cytoscape({
+    container: document.getElementById('cy'),
+    elements: [],
+    layout: { name:'cose', animate:false },
+    minZoom: 0.1,
+    maxZoom: 12,
+    wheelSensitivity: 0.25,
+    style: [
+      { selector:'node[group="person"]',  style:{
+          'background-color':'#fff','border-width':1,'border-color':SB[700],'label':'data(label)',
+          'font-size':'9px','color':SB.ink,'text-wrap':'wrap','text-max-width':80
+      }},
+      { selector:'node[group="diagnosis"], node[group="concept"]', style:{
+          'shape':'round-rectangle','background-color':'#eef3ff','border-width':2,'border-color':SB[700],
+          'label':'data(label)','font-size':'9px','color':SB.ink,'text-wrap':'wrap','text-max-width':120
+      }},
+      { selector:'node[group="drug"]',    style:{
+          'shape':'triangle','background-color':SB[700],'border-width':0,'label':'data(label)',
+          'font-size':'9px','color':'#fff','text-wrap':'wrap','text-max-width':100
+      }},
+      { selector:'edge', style:{
+          'width':1,'line-color':'#b7c3df','target-arrow-color':'#b7c3df','curve-style':'bezier','target-arrow-shape':'vee',
+          'label':'data(label)','font-size':'8px','color':'#6b7aa6','text-rotation':'autorotate'
+      }},
+      { selector:':selected', style:{ 'border-width':2,'border-color':SB[900],'line-color':SB[900],'target-arrow-color':SB[900] } }
+    ]
+  });
+}
+initCy();
+
+function fitFill(padding = 24, mode = 'contain') {
+  if (!cy) return;
+  cy.resize();
+
+  const eles = cy.elements();
+  if (!eles.length) return;
+
+  const bb = eles.boundingBox({ includeLabels: true, includeOverlays: false });
+  const W = cy.width(), H = cy.height();
+  const w = Math.max(bb.w, 1), h = Math.max(bb.h, 1);
+
+  const rX = (W - padding * 2) / w;
+  const rY = (H - padding * 2) / h;
+  const scale = (mode === 'cover') ? Math.max(rX, rY) : Math.min(rX, rY);
+
+  const zoom = Math.max(Math.min(scale, cy.maxZoom()), cy.minZoom());
+  const cx = (bb.x1 + bb.x2) / 2;
+  const cyy = (bb.y1 + bb.y2) / 2;
+
+  cy.viewport({
+    zoom,
+    pan: { x: W / 2 - zoom * cx, y: H / 2 - zoom * cyy }
+  });
+}
+
+function shortLabel(name, max=26){
+  name = String(name||'').trim();
+  if(name.length <= max) return name;
+  return name.slice(0, max-1) + '…';
+}
+
+function drawConceptGraphFromAnalytics(analytics){
+  if (!analytics || !Array.isArray(analytics.top_concepts) || analytics.top_concepts.length===0){
+    toast('No top concepts to draw','err');
+    return;
+  }
+  const baseTerm = analytics.base_term || 'Concept';
+  const items = analytics.top_concepts.slice(0, 12);
+  const maxN = Math.max(...items.map(x=>+x.n||0)) || 1;
+
+  initCy();
+
+  const centerId = 'base';
+  const elements = [{ data:{ id:centerId, label: baseTerm, group:'concept', n: analytics.total_n||0 } }];
+
+  items.forEach((c, i)=>{
+    const id = 'c'+i;
+    const n = +c.n || 0;
+    elements.push({
+      data:{ id, label: shortLabel(c.concept_name) + '\n' + n.toLocaleString(), rawLabel: c.concept_name, n }
+    });
+    elements.push({ data:{ id:'e'+i, source:centerId, target:id, n } });
+  });
+
+  cy.add(elements);
+
+  const CSS = getComputedStyle(document.documentElement);
+  const INK = CSS.getPropertyValue('--ink').trim() || '#0f172a';
+  const SB900 = '#274060', SB700 = '#3f6aa0';
+
+  cy.style().fromJson([
+    { selector:'node', style:{
+      'label':'data(label)','text-wrap':'wrap','text-max-width':120,'font-size':'9px','color': INK,
+      'background-color':'#9fb6da','border-color': SB700,'border-width':1,'text-halign':'center','text-valign':'center',
+      'width': `mapData(n, 0, ${maxN}, 26, 88)`, 'height': `mapData(n, 0, ${maxN}, 26, 88)`
+    }},
+    { selector:'node[group="concept"]', style:{ 'background-color': SB900,'color':'#fff','border-width':0 } },
+    { selector:'edge', style:{
+      'curve-style':'bezier','line-color':'#b7c3df','target-arrow-shape':'vee','target-arrow-color':'#b7c3df',
+      'width': `mapData(n, 0, ${maxN}, 1, 6)`, 'label':'','font-size':'8px','color':'#6b7aa6','text-rotation':'autorotate'
+    }},
+    { selector:':selected', style:{ 'border-width':2,'border-color':SB900,'line-color':SB900,'target-arrow-color':SB900 } },
+    { selector:'.faded', style:{ 'opacity':0.25 } }
+  ]).update();
+
+  const layout = (window.cytoscapeFcose)
+    ? cy.layout({
+        name:'fcose', quality:'proof', animate:false,
+        nodeSeparation:90, idealEdgeLength:120,
+        packComponents:true, nodeDimensionsIncludeLabels:true
+      })
+    : cy.layout({ name:'cose', animate:false, nodeRepulsion:800000, idealEdgeLength:120 });
+
+  cy.once('layoutstop', () => fitFill(24, 'cover'));
+  layout.run();
+  setTimeout(() => fitFill(24), 0);
+
+  cy.off('tap');
+  cy.on('tap', 'node', (evt)=>{
+    const n = evt.target;
+    const neighborhood = n.closedNeighborhood();
+    cy.elements().addClass('faded');
+    neighborhood.removeClass('faded');
+    const raw = n.data('rawLabel') || n.data('label');
+    const cnt = n.data('n');
+    if (raw && cnt !== undefined) toast(`${raw}: ${Number(cnt).toLocaleString()}명`);
+    else toast(n.data('label'));
+  });
+  cy.on('tap', (evt)=>{ if (evt.target === cy){ cy.elements().removeClass('faded'); } });
+
+  toast(`Concept graph drawn (${items.length} nodes)`);
+}
+
+/* --- Neo4j graph from backend --- */
+async function loadGraph(term, opts={}){
+  if(!term){ toast('No term/subject_id','err'); return; }
+  const backend = els.backendUrl.value.trim();
+  const base = backend.replace(/\/ask.*$/,'');
+  const url  = base + '/graph/journey'; // backend endpoint
+  const payload = {
+    term,
+    icd: opts.icd || '',
+    age_min: Number.isInteger(opts.age_min) ? opts.age_min : undefined,
+    max_patients: opts.max_patients ?? 100,
+    limit: opts.limit ?? 800
+  };
+  try{
+    const res = await fetch(url,{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+    if(!res.ok){
+      let detail=''; try{ const j=await res.json(); detail=j.detail||''; }catch{}
+      throw new Error(`Graph ${res.status} ${detail}`.trim());
+    }
+    const data = await res.json();
+    lastGraphData = data; state.lastGraph = data; store.save(state);
+    initCy(); cy.add(data.nodes||[]); cy.add(data.edges||[]);
+    const layout = cy.layout({ name:'cose', animate:false });
+    cy.once('layoutstop', () => fitFill(24, 'cover'));
+    layout.run();
+    setTimeout(() => fitFill(24), 0);
+    toast(`Graph loaded (${(data.nodes||[]).length} nodes)`);
+  }catch(e){ toast(`Graph error: ${e.message}`,'err'); throw e; }
+}
+
+function messagesForSend(){ return state.history.map(({role, content}) => ({role, content})); }
+
+async function handleSend(){
+  const text = els.input.value.trim(); if(!text) return;
+  els.send.disabled = true; addMessage('user', text); els.input.value='';
+  const typing = addTyping();
+  showIntelligentProcessing();
+
+  try{
+    const json = (currentMode()==='backend') ? await sendToBackend(messagesForSend()) : await sendToLmStudio(messagesForSend());
+    const replyRaw = extractAssistantText(json);
+    const analytics = extractAnalytics(json, replyRaw);
+    const reply = stripHiddenMetrics(replyRaw);
+    removeNode(typing); addMessage('assistant', reply);
+
+    if(analytics){
+      state.history[state.history.length-1].analytics = analytics; store.save(state);
+      if(typeof analytics.total_n !== 'number' && typeof analytics.patient_count === 'number'){
+        analytics.total_n = analytics.patient_count;
+      }
+      renderRightPanel(analytics);
+      await autoGraph(analytics, text);
+    }else{
+      renderRightPanel(null);
+      await autoGraph(null, text);
+    }
+  }catch(err){
+    console.error(err); removeNode(typing); addMessage('assistant', `Error: ${err.message}`);
+  }finally{
+    els.send.disabled = false; els.input.focus();
+  }
+}
+
+
+els.btnSave.addEventListener('click', async ()=>{
+  state.backendUrl = els.backendUrl.value.trim();
+  state.lmBase    = els.lmBase.value.trim();
+  state.lmModel   = els.lmModel.value.trim();
+  state.lmTemp    = els.lmTemp.value.trim();
+  state.neo4jUri  = els.neo4jUri.value.trim();
+  state.neo4jUser = els.neo4jUser.value.trim();
+  state.neo4jPass = els.neo4jPass.value;
+  store.save(state);
+
+  if(state.neo4jUri && state.neo4jUser && state.neo4jPass){
+    try{
+      const base = state.backendUrl.replace(/\/ask.*$/,'');
+      const res = await fetch(base + '/config/neo4j', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ uri: state.neo4jUri, user: state.neo4jUser, password: state.neo4jPass })
+      });
+      if(!res.ok){
+        let msg=''; try{ const j=await res.json(); msg=j.detail||''; }catch{}
+        toast('Neo4j connect failed: '+msg,'err');
+        return;
+      }
+      toast('Settings saved · Neo4j connected');
+    }catch(e){
+      toast('Neo4j connect failed: '+e.message,'err');
+    }
+  }else{
+    toast('Settings saved (Neo4j not configured)');
+  }
+});
+
+els.btnExport.addEventListener('click', ()=>{
+  const lastAnalytics = (()=>{ for(let i=state.history.length-1;i>=0;i--) if(state.history[i].analytics) return state.history[i].analytics; return null; })();
+  const payload = {
+    exported_at: new Date().toISOString(),
+    backend: state.backendUrl || null,
+    model: state.lmModel || null,
+    base_term: lastAnalytics?.base_term || null,
+    analytics: lastAnalytics || null,
+    graph: state.lastGraph || lastGraphData || null,
+    conversation_tail: state.history.slice(-6).map(m => ({role:m.role, ts:m.ts, has_analytics:!!m.analytics}))
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `KHDP CDM-RAG-Studio-export-${new Date().toISOString().replaceAll(':','-')}.json`;
+  a.click();
+  toast('Exported raw data');
+});
+
+els.btnClear.addEventListener('click', ()=>{
+  if(!confirm('Delete all chat history and clear analytics?')) return;
+  state.history = []; state.lastGraph = null; store.save(state);
+  renderAll(); clearViz(); initCy();
+  toast('History deleted');
+});
+
+els.send.addEventListener('click', handleSend);
+els.input.addEventListener('keydown', (e) => {
+  if (e.isComposing || e.keyCode === 229) return;
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    handleSend();
+  }
+});
+els.btnLoadGraph.addEventListener('click', async ()=>{
+  const term = els.testTerm.value.trim();
+  if(!term){ toast('Enter a test term','err'); return; }
+  try{ await loadGraph(term); }catch{}
+});
+document.getElementById('btnLLMGraph').textContent = 'Concept graph';
+document.getElementById('btnLLMGraph').onclick = ()=>{
+  const lastAnalytics = (()=>{ 
+    for(let i=state.history.length-1;i>=0;i--) if(state.history[i].analytics) return state.history[i].analytics; 
+    return null; 
+  })();
+  if(!lastAnalytics || !Array.isArray(lastAnalytics.top_concepts) || !lastAnalytics.top_concepts.length){
+    toast('No analytics.top_concepts available','err');
+    return;
+  }
+  drawConceptGraphFromAnalytics(lastAnalytics);
+};
+
+window.addEventListener('load', async ()=>{
+  showAnalyticsPlaceholder();
+  renderAppInfo(document.getElementById('appInfoTop'));
+  renderAppInfo(document.getElementById('appInfoFooter'));
+
+  const last = (()=>{ for(let i=state.history.length-1;i>=0;i--) if(state.history[i].analytics) return state.history[i].analytics; return null; })();
+  if(last){
+    renderRightPanel(last);
+    try{ await autoGraph(last, state.history.find(m=>m.role==='user')?.content || ''); }catch{}
+  }
+  const cyDiv = document.getElementById('cy');
+  const ro = new ResizeObserver(() => fitFill(24, 'cover'));
+  ro.observe(cyDiv);
+  setTimeout(() => fitFill(24), 50);
+
+});
+</script>
+</body>
+</html>
